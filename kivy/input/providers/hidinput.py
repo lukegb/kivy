@@ -115,6 +115,8 @@ else:
     MSC_MAX = 0x07
     MSC_CNT = (MSC_MAX + 1)
 
+    ABS_X = 0x00               # Absolute X axis
+    ABS_Y = 0x01               # Absolute Y axis
     ABS_MT_TOUCH_MAJOR = 0x30  # Major axis of touching ellipse
     ABS_MT_TOUCH_MINOR = 0x31  # Minor axis (omit if circular)
     ABS_MT_WIDTH_MAJOR = 0x32  # Major axis of approaching ellipse
@@ -275,6 +277,7 @@ else:
 
             def process_as_mouse(tv_sec, tv_usec, ev_type, ev_code, ev_value):
 
+
                 if ev_type == EV_SYN:
                     if ev_code == SYN_REPORT:
                         process([point])
@@ -288,8 +291,28 @@ else:
                         point['y'] = \
                             min(1., max(0., point['y'] - ev_value / 1000.))
 
+                elif ev_type == EV_ABS:
+
+                    if ev_code == ABS_X:
+                        val = normalize(ev_value,
+                                        range_min_position_x,
+                                        range_max_position_x)
+                        #Logger.info("HIDInput: [x] Normalising %d between %d and %d = %f" % (ev_value, range_min_position_x, range_max_position_x, val))
+                        if invert_x:
+                            val = 1. - val
+                        point['x'] = val
+                    elif ev_code == ABS_Y:
+                        val = normalize(ev_value,
+                                        range_min_position_y,
+                                        range_max_position_y)
+                        #Logger.info("HIDInput: [y] Normalising %d between %d and %d = %f" % (ev_value, range_min_position_x, range_max_position_x, val))
+                        if invert_y:
+                            val = 1. - val
+                        point['y'] = val
+
                 elif ev_type == EV_KEY:
                     buttons = {
+                        330: 'left', # this is actually 'touch'
                         272: 'left',
                         273: 'right',
                         274: 'middle',
@@ -381,7 +404,15 @@ else:
                                           ' ' * struct_input_absinfo_sz)
                     abs_value, abs_min, abs_max, abs_fuzz, \
                         abs_flat, abs_res = struct.unpack('iiiiii', absinfo)
-                    if y == ABS_MT_POSITION_X:
+                    if y == ABS_X:
+                        range_min_position_x = drs('min_position_x', abs_min)
+                        range_max_position_x = drs('max_position_x', abs_max)
+                        Logger.info('HIDMotionEvent: <%s> abs range X is %d - %d using %d - %d' % (device_name, abs_min, abs_max, range_min_position_x, range_max_position_x))
+                    elif y == ABS_Y:
+                        range_min_position_y = drs('min_position_y', abs_min)
+                        range_max_position_y = drs('max_position_y', abs_max)
+                        Logger.info('HIDMotionEvent: <%s> abs range Y is %d - %d using %d - %d' % (device_name, abs_min, abs_max, range_min_position_y, range_max_position_y))
+                    elif y == ABS_MT_POSITION_X:
                         is_multitouch = True
                         range_min_position_x = drs('min_position_x', abs_min)
                         range_max_position_x = drs('max_position_x', abs_max)
